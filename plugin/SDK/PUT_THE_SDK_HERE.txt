@@ -1,0 +1,12 @@
+Put the X-Plane SDK here (it is not part of the Urania repository).
+
+1. Download the X-Plane SDK 4.4 or newer (X-Plane 12.4.4):
+   https://developer.x-plane.com/sdk/plugin-sdk-downloads/
+2. Extract the zip file.
+3. Copy the folders "CHeaders" and "Libraries" into this folder:
+       plugin/SDK/CHeaders/XPLM/XPLMPlugin.h
+       plugin/SDK/Libraries/Win/XPLM_64.lib
+       ...
+4. Build: python scripts/build_plugin.py
+
+The SDK is used only to compile the plugin. It is not distributed with Urania.

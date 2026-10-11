@@ -1,0 +1,13 @@
+Put Dear ImGui here (it is not part of the Urania repository).
+
+Urania is tested with Dear ImGui 1.92.9b (docking branch). It needs the API with
+ImTextureData / ImGuiBackendFlags_RendererHasTextures (version 1.92 or newer).
+
+1. Download Dear ImGui 1.92.9b or newer: https://github.com/ocornut/imgui
+   (for example: git clone --depth 1 --branch v1.92.9b-docking https://github.com/ocornut/imgui)
+2. Copy only these files into this folder:
+       imgui.cpp  imgui.h  imgui_draw.cpp  imgui_internal.h  imgui_tables.cpp  imgui_widgets.cpp
+       imconfig.h  imstb_rectpack.h  imstb_textedit.h  imstb_truetype.h  LICENSE.txt
+3. Build: python scripts/build_plugin.py
+
+Dear ImGui is MIT licensed. The plugin binary contains it; its license goes into the Urania zip.

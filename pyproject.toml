@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "urania"
+version = "1.0.0"
+description = "Urania: build the night sky mod (shader, star data, plugin) for X-Plane 12.4.4 and newer."
+requires-python = ">=3.9,<3.15"
+license = { text = "MIT" }
+dependencies = [
+    "numpy",
+    "OpenEXR>=3.3",
+    "tkinterdnd2>=0.4",
+]
+
+[project.optional-dependencies]
+preview = ["pillow"]
+dev = ["pytest>=8", "pyinstaller>=6.10", "pillow"]
+
+[project.scripts]
+urania = "urania.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+urania = ["engine/shader_src/*.glsl", "licenses/*.txt", "assets/*.png"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "tools: needs glslangValidator, spirv-val and spirv-cross",
+    "real: needs the real input files in inputs/ (or URANIA_INPUTS)",
+]
+addopts = "-m 'not real'"

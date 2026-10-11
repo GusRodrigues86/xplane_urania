@@ -1,0 +1,25 @@
+# Local input files (large, or Laminar data): never commit
+inputs/
+
+# Python
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+
+# Third-party code: never commit. The builder puts it in place (see the PUT_*_HERE.txt notes).
+plugin/SDK/*
+!plugin/SDK/PUT_THE_SDK_HERE.txt
+plugin/third_party/imgui/*
+!plugin/third_party/imgui/PUT_IMGUI_HERE.txt
+
+# Build output
+build/
+dist/
+out/
+vendor/
+plugin/build/
+plugin/dist/
+
+# Logs
+*.log

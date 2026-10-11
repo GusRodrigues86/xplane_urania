@@ -1,0 +1,6 @@
+Milky Way brightness map: "Deep Star Maps 2020", NASA/Goddard Space Flight Center
+Scientific Visualization Studio, https://svs.gsfc.nasa.gov/4851
+Gaia DR2: ESA/Gaia/DPAC.
+
+NASA SVS material is not copyrighted (credit requested). Urania uses the map to compute the
+Milky Way haze rows in earth_astro.dat; the map itself is not in this zip.
