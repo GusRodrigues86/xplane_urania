@@ -437,15 +437,30 @@ void ui_sky()
         ImGui::TextColored(warn, "X-Plane update? The Urania sky files were %s", g_sky_check.detail.c_str());
         ImGui::PopTextWrapPos();
     }
+    // The moonlit sky glow and the moon disk scale with moon/nits (u_light_diffuse). The shader bakes the
+    // calibration for the X-Plane default 785 (docs/MOONLIGHT.md): another value makes the glow wrong.
+    float nits = g_nits.get();
+    if (g_sky_check.info.moon == 1 && !std::isnan(nits) && std::fabs(nits - kMoonNits) > 0.5f) {
+        ImGui::PushTextWrapPos(0.0f);
+        ImGui::TextColored(warn, "moon/nits is %.0f. The Urania moonlit sky is calibrated for %.0f.", nits, kMoonNits);
+        ImGui::PopTextWrapPos();
+        if (ImGui::Button("Set moon/nits to 785")) {
+            XPLMSetDataf(g_nits.ref, kMoonNits);
+            log_line("moon/nits set to %.0f (was %.0f)", kMoonNits, nits);
+        }
+    }
     if (g_open_sky) {
         ImGui::SetNextItemOpen(true);
         g_open_sky = false;
     }
     if (!ImGui::CollapsingHeader("Sky files"))
         return;
-    if (g_sky_check.state == SkyState::kInstalled)
+    if (g_sky_check.state == SkyState::kInstalled) {
         ImGui::TextDisabled("%s", g_sky_check.detail.c_str());
-    else if (g_sky_check.state == SkyState::kNoManifest)
+        if (g_sky_check.info.moon >= 0)
+            ImGui::TextDisabled("Moonlit sky: %s", g_sky_check.info.moon ? "on (glow around the moon, moon phase light)"
+                                                                         : "off (X-Plane moon)");
+    } else if (g_sky_check.state == SkyState::kNoManifest)
         ImGui::TextDisabled("Not installed from a Urania zip (%s).", g_sky_check.detail.c_str());
     bool have_backup = file_size(g_sky.backup_xsa) > 0 && file_size(g_sky.backup_dat) > 0;
     if (!g_confirm_restore) {

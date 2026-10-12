@@ -122,6 +122,79 @@ layout(location = 0) out vec4 data_out0;
 void main() { data_out0 = vec4(v_L, v_L, v_L, float(v_eye)); }
 """
 
+# Stand-in moon stages 0/2 (vertex) and 1 (fragment): invented code with the interface names that the
+# Urania moon mod needs. Stage 1 has a sky lookup in a do { } while (false) block, like the stock stage.
+MOON_VERTEX = """#version 460
+#extension GL_ARB_shader_viewport_layer_array : require
+layout(set = 0, binding = 0, std140) uniform u_transform_block_fat {{
+    mat4 modelview_matrix[2];
+    mat4 mvp_matrix[2];
+    vec3 u_mv_offset;
+    int u_viewport_count;
+    int u_layer_count;
+    int u_layer_offset;
+    int u_transform_count;
+}} xform;
+layout(set = 0, binding = 3, std140) uniform u_immediate_data {{ vec4 u_imm_a_point_size; }} imm;
+layout(location = 0) in vec3 a_vertex;
+layout(location = 1) in vec3 a_normal;
+layout(location = 2) in vec2 a_texcoord0;
+layout(location = 0) out vec3 v_dir_wrl;
+layout(location = 1) out vec3 v_normal_eye;
+layout(location = 2) out vec3 v_position_eye;
+layout(location = 3) out vec2 v_ratio;
+layout(location = 4) out vec2 v_texcoord0;
+layout(location = 6) flat out int v_eye;
+void main()
+{{
+    int i = gl_InstanceIndex % xform.u_transform_count;
+    gl_ViewportIndex = gl_InstanceIndex % xform.u_viewport_count;
+    gl_Layer = (gl_InstanceIndex % xform.u_layer_count) + xform.u_layer_offset;
+    vec4 p = xform.modelview_matrix[i] * vec4(a_vertex - xform.u_mv_offset, 1.0);
+    gl_Position = xform.mvp_matrix[i] * vec4(a_vertex, 1.0);
+    v_dir_wrl = a_vertex;
+    v_normal_eye = a_normal;
+    v_position_eye = p.xyz;
+    v_ratio = gl_Position.xy / gl_Position.w;
+    v_texcoord0 = a_texcoord0;
+    v_eye = i;
+    {point_size}
+}}
+"""
+
+MOON_FRAGMENT = """#version 460
+layout(set = 0, binding = 1, std140) uniform u_astronomical_data { vec3 u_light_diffuse; vec3 u_light_position; } astro;
+layout(set = 0, binding = 2, std140) uniform u_dome_data { mat4 u_sky_inv; vec4 u_sky_scale; } dome;
+layout(set = 1, binding = 0) uniform sampler2D u_tex0;
+layout(set = 1, binding = 1) uniform sampler2D u_tex0_nrm;
+layout(set = 1, binding = 2) uniform sampler2D u_tex_sky;
+layout(location = 0) in vec3 v_dir_wrl;
+layout(location = 1) in vec3 v_normal_eye;
+layout(location = 2) in vec3 v_position_eye;
+layout(location = 3) in vec2 v_ratio;
+layout(location = 4) in vec2 v_texcoord0;
+layout(location = 6) flat in int v_eye;
+layout(location = 0) out vec4 data_out0;
+void main()
+{
+    vec3 view = normalize(vec3((v_ratio * dome.u_sky_scale.xy) + dome.u_sky_scale.zw, -1.0));
+    vec4 sky;
+    do
+    {
+        vec3 w = mat3(dome.u_sky_inv) * view;
+        if (w.y < 0.0)
+        {
+            sky = vec4(0.0, 0.0, 0.0, 1.0);
+            break;
+        }
+        sky = texture(u_tex_sky, w.xz * 0.5 + 0.5);
+    } while (false);
+    vec4 moon = texture(u_tex0, v_texcoord0) * texture(u_tex0_nrm, v_texcoord0);
+    data_out0 = vec4(moon.xyz * astro.u_light_diffuse * sky.w + sky.xyz + v_dir_wrl * 0.0
+                     + v_normal_eye * 0.0 + v_position_eye * 0.0 + astro.u_light_position * 0.0, 1.0);
+}
+"""
+
 OTHER_VERTEX = """#version 460
 layout(location = 0) in vec4 a_vertex;
 void main() {{ gl_Position = a_vertex * {k}.0; }}
@@ -153,6 +226,11 @@ def build_fake_xsa(path, workdir, glslang):
     for i in range(9):
         if i in (6, 8):
             stages[i] = compile_glsl(glslang, STOCK_VERTEX, "vert", workdir, f"s{i}")
+        elif i in (0, 2):
+            ps = "gl_PointSize = imm.u_imm_a_point_size.x;" if i == 2 else ""
+            stages[i] = compile_glsl(glslang, MOON_VERTEX.format(point_size=ps), "vert", workdir, f"s{i}")
+        elif i == 1:
+            stages[i] = compile_glsl(glslang, MOON_FRAGMENT, "frag", workdir, f"s{i}")
         elif i == 7:
             stages[i] = compile_glsl(glslang, STOCK_FRAGMENT, "frag", workdir, f"s{i}")
         else:

@@ -45,6 +45,7 @@ class GuiModel:
     checks: list = field(default_factory=list)
     screen_height: int = 1080
     airglow: bool = False
+    moon: bool = True             # moonlit sky glow and moon phase (shader stages 0, 1, 2)
     gains: dict = field(default_factory=lambda: {k: shaders.DEFAULT_SETTINGS[k].value for k in GAIN_KEYS})
     out_zip: str = ""
     building: bool = False
@@ -119,7 +120,7 @@ class GuiModel:
         return not self.building and not self.problems()
 
     def request(self):
-        overrides = {"VIEWPORT_H": int(self.screen_height)}
+        overrides = {"VIEWPORT_H": int(self.screen_height), "MOON": 1.0 if self.moon else 0.0}
         overrides.update({k: float(v) for k, v in self.gains.items()})
         s = self.slots
         return pipeline.BuildRequest(
@@ -339,6 +340,10 @@ class UraniaApp:
         self.airglow_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(box, text="Airglow: a faint natural glow over the full sky", variable=self.airglow_var,
                         command=self._sync_options).grid(row=2, column=0, columnspan=3, sticky="w", pady=(6, 0))
+        self.moon_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(box, text="Moonlit sky: glow around the moon, real moon phase light",
+                        variable=self.moon_var, command=self._sync_options).grid(row=3, column=0, columnspan=3,
+                                                                                  sticky="w", pady=(2, 0))
 
         self.adv_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(parent, text="Advanced: brightness gains", variable=self.adv_var, style="Lav.TCheckbutton",
@@ -475,6 +480,8 @@ class UraniaApp:
             self.model.screen_height = 0
         if hasattr(self, "airglow_var"):
             self.model.airglow = bool(self.airglow_var.get())
+        if hasattr(self, "moon_var"):
+            self.model.moon = bool(self.moon_var.get())
         for k, var in getattr(self, "gain_vars", {}).items():
             try:
                 v = float(var.get())

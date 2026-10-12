@@ -104,6 +104,8 @@ bool read_install_info(const std::string& path, InstallInfo& out, std::string& e
             out.xsa_size = std::atoll(value);
         else if (std::strcmp(key, "dat_size") == 0)
             out.dat_size = std::atoll(value);
+        else if (std::strcmp(key, "moon") == 0)
+            out.moon = std::atoi(value) ? 1 : 0;
     }
     std::fclose(f);
     if (out.version.empty() || out.xsa_size <= 0 || out.dat_size <= 0) {
@@ -123,6 +125,7 @@ SkyCheck check_sky_files(const SkyPaths& paths)
         c.detail = err;
         return c;
     }
+    c.info = info;
     std::string changed;
     if (file_size(paths.xsa) != info.xsa_size)
         changed += "astronomical.xsa";

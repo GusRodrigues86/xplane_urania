@@ -4,7 +4,10 @@ Urania is a night sky for **X-Plane 12.4.4 and newer** on Windows and Linux (Vul
 
 - Stars have their real colors and sizes.
 - The Milky Way, nebulae and galaxies show as soft light.
+- **Moonlit sky:** the sky glows around the moon, and the glow follows the moon phase and height. The moon crescent stays bright up to its edge. The glow lights the terrain softly, and the stars stay visible through it. History: [docs/MOONLIGHT.md](docs/MOONLIGHT.md).
 - The Urania plugin sets the moonlight on clouds and the sky darkness. It also checks the sky files and can restore the X-Plane sky.
+
+What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
 Urania is one app. The user drops in the input files, Urania checks the computer, and Urania builds **one zip file**. Extract that zip in the X-Plane 12 folder to install everything.
 
@@ -47,7 +50,7 @@ Command line: `urania-cli build --stars <file> --milkyway <file> [--xplane <fold
 | `tests/` | pytest suite (engine, app, GUI model, theme, plugin contract, real data) |
 | `plugin/tests/` | C++ unit tests (CTest), no X-Plane needed |
 | `scripts/` | `build_tools.py`, `build_plugin.py`, `build_app.py`, `release.py` |
-| `docs/` | `NIGHT_SKY_ENCODING.md`, `SHADER_BUILD.md` |
+| `docs/` | `NIGHT_SKY_ENCODING.md` (star data encoding), `SHADER_BUILD.md`, `MOONLIGHT.md` (moonlit sky and plugin history), `ASTRONOMICAL_SHADER.md` (X-Plane shader analysis) |
 
 ### Third-party code: put it in place yourself (it is not in git)
 
@@ -129,6 +132,7 @@ Release order:
 ### Guarantees that the tests check
 
 - With the same inputs, `earth_astro.dat` is byte-identical to the night-sky-generator v1 reference (`tests/test_real.py`).
+- The shader (stars and moonlit sky) is byte-identical to the night-sky-generator v1 release when the same tools build it. The moon stage 0 and 2 and the star stages 6, 7 and 8 also match the v1 reference hashes (`tests/test_real.py`).
 - The plugin (C++) reads and writes the gains in the shader that the app (Python) builds: specialization constants 200-204, and stages 6 and 8 stored (`tests/test_plugin_contract.py`).
 - The same input gives the same zip (fixed dates, sorted entries).
 - Each text color of the GUI meets WCAG AA contrast (`tests/test_theme.py`).

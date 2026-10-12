@@ -157,8 +157,10 @@ def test_build_xsa(tmp_path, fake_xsa):
                 assert b.compress_type == zipfile.ZIP_STORED
             else:
                 assert b.compress_type == a.compress_type
-            if i < 6:
-                assert zout.read(b) == zin.read(a)            # stages 0..5 unchanged
+            if 3 <= i <= 5:
+                assert zout.read(b) == zin.read(a)            # stages 3..5 (sun, planets) unchanged
+            else:
+                assert zout.read(b) != zin.read(a)            # moon 0..2 and stars 6..8 replaced
     assert spirv.is_patched(r.xsa)
     assert "VIEWPORT_H = 1440.0" in open(r.report, encoding="utf-8").read()
 

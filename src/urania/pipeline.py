@@ -93,6 +93,8 @@ def self_check(zip_path, settings):
             want = settings[name].value
             if abs(value - want) > 1e-6 * max(1.0, abs(want)):
                 raise UraniaError(f"Self-check: {name} is {value} in the zip, expected {want}.")
+        if spirv.has_moon(os.path.join(tmp, bundle.PATH_XSA)) != shaders.moon_enabled(settings):
+            raise UraniaError("Self-check: the moon stages in the zip do not match the moonlit sky option.")
         check = night_sky.verify(os.path.join(tmp, bundle.PATH_DAT))
         if check.errors or not check.haze:
             raise UraniaError("Self-check: the star file in the zip is not correct.")

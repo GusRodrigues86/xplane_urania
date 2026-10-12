@@ -21,6 +21,7 @@ GAIN_SPEC_IDS = {"STAR_GAIN": 200, "MW_GAIN": 201, "NEBULA_GAIN": 202, "GALAXY_G
 HAZE_EMISSIVE_SPEC_ID = 204
 GAIN_STAGES = ("astronomical_6.spv", "astronomical_8.spv")
 PATCH_MARK = b"v_kind"        # an output name of the mod; only a patched stage 7 has it
+MOON_MARK = b"pcg_hash"       # a function name of the moon mod; only a patched stage 1 has it
 
 
 def spec_constants(spv):
@@ -74,6 +75,12 @@ def read_gains(xsa_path):
 
 
 def is_patched(xsa_path):
-    """Return True if stage 7 of the .xsa is the mod stage (not the X-Plane original)."""
+    """Return True if the .xsa has the star mod (stage 7) or the moon mod (stage 1): not the X-Plane original."""
     with zipfile.ZipFile(xsa_path) as z:
-        return PATCH_MARK in z.read("astronomical_7.spv")
+        return PATCH_MARK in z.read("astronomical_7.spv") or MOON_MARK in z.read("astronomical_1.spv")
+
+
+def has_moon(xsa_path):
+    """Return True if the .xsa has the moon sky mod (stage 1)."""
+    with zipfile.ZipFile(xsa_path) as z:
+        return MOON_MARK in z.read("astronomical_1.spv")

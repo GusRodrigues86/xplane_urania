@@ -50,6 +50,8 @@ def cmd_build(args):
     overrides = shaders.parse_set_pairs(args.set)
     if args.screen_height:
         overrides["VIEWPORT_H"] = args.screen_height
+    if args.no_moon:
+        overrides["MOON"] = 0
     req = pipeline.BuildRequest(stars=args.stars, milkyway=args.milkyway, out_zip=args.out, xplane_root=root,
                                 xsa=args.xsa, dat=args.dat, overrides=overrides, airglow=args.airglow,
                                 allow_any_version=args.allow_any_version, tools_dir=args.tools,
@@ -107,6 +109,8 @@ def parser():
     p.add_argument("--out", default=pipeline.DEFAULT_ZIP_NAME, help=f"zip to write (default {pipeline.DEFAULT_ZIP_NAME})")
     p.add_argument("--screen-height", type=int, help="screen height in px (VIEWPORT_H, default 1080)")
     p.add_argument("--airglow", action="store_true", help="add a faint glow over the full sky")
+    p.add_argument("--no-moon", action="store_true",
+                   help="keep the X-Plane moon (no moonlit sky glow, no moon phase light law)")
     p.add_argument("--set", action="append", metavar="NAME=VALUE", help="change a shader setting (repeat for more)")
     p.add_argument("--allow-any-version", action="store_true", help="build also for X-Plane older than 12.4.4")
     p.add_argument("--tools", help="folder with glslangValidator, spirv-val and spirv-cross")

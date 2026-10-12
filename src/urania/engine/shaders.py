@@ -87,7 +87,24 @@ DEFAULT_SETTINGS = {
     "CLAMP_NDC":    Setting(0.98,   "v", "keep haze sprite centers inside the view (0..1 of the half view)"),
     # --- Fragment stage ---
     "DITHER":       Setting(0.14,   "f", "haze noise strength against banding (0 = off)"),
+    # --- Moon sky (stages 0, 1, 2). Defaults: tested version "moon probe 2.4, sky25" (2026-10-10). ---
+    "MOON":         Setting(1.0,    "m", "1 = moon sky mod, 0 = stock moon stages"),
+    "MOON_SKY":     Setting(0.25,   "m", "moonlit sky glow (1.0 = probe 2.2 look at moon/nits 3850)"),
+    "MOON_LIGHT":   Setting(1.0,    "m", "scene light from the moonlit sky (1.0 = probe 2.2 look at moon/nits 7850)"),
+    "MOON_RGB":     Setting((0.85, 0.92, 1.0), "m", "moonlit sky color (scaled to luminance 1)"),
+    "MOON_K_EXT":   Setting(0.2,    "m", "atmospheric extinction, magnitudes per airmass"),
+    "MOON_DIAMETER": Setting(0.52,  "m", "moon diameter in degrees (sim/private/controls/moon/angular_diameter)"),
+    "MOON_DITHER":  Setting(0.05,   "m", "glow noise strength against banding (0 = off)"),
+    "MOON_LS":      Setting(1.0,    "m", "moon disk light law: 1 = Lommel-Seeliger (bright crescent), 0 = stock Lambert"),
 }
+
+# Moon glow calibration (probe 2.2, 2026-10-10; see docs/MOONLIGHT.md). Glow gain 6e-5 x luminance of
+# u_light_diffuse at the reference point (45 deg from the moon, pixel and moon at 45 deg elevation,
+# full moon) at moon/nits 785. The sky looked best at moon/nits 3850, the terrain light at 7850.
+# The shader bakes these in, so moon/nits stays at the X-Plane default 785.
+MOON_REF_GAIN = 6e-5
+MOON_NITS_DEFAULT, MOON_NITS_SKY, MOON_NITS_LIGHT = 785.0, 3850.0, 7850.0
+MOON_REF_DEG = 45.0
 
 # Old setting name -> new names (night-sky-generator v1 had one DSO_GAIN).
 LEGACY_ALIASES = {"DSO_GAIN": ("NEBULA_GAIN", "GALAXY_GAIN")}
@@ -98,7 +115,8 @@ STAR_K_MIN, STAR_K_MAX, BV_MIN, BV_MAX = 1, 89, -0.40, 2.00
 # The stock uniform blocks that the mod code uses, and the short names that the mod code uses for them.
 BLOCK_ALIASES = {"u_transform_block_fat": "XFORM", "u_astronomical_data": "ASTRO", "u_environment_data": "ENV"}
 
-MOD_STAGES = {6: "vert", 7: "frag", 8: "vert"}
+MOD_STAGES = {0: "vert", 1: "frag", 2: "vert", 6: "vert", 7: "frag", 8: "vert"}
+MOON_STAGES = (0, 1, 2)
 STAGE_COUNT = 9
 
 XSA_NAME = "astronomical.xsa"
@@ -227,7 +245,7 @@ def settings_block(stage, settings=None):
     settings = settings or DEFAULT_SETTINGS
     lines = ["// --- Settings (written by Urania) ---"]
     for name, s in settings.items():
-        if s.stage != stage:
+        if s.stage != stage or stage == "m":
             continue
         if isinstance(s.value, tuple):
             lines.append(f"#define {name} {glsl_value(s.value)}   // {s.comment}")
@@ -259,6 +277,112 @@ def stock_declarations(stock_glsl):
     if "a_vertex" not in head:
         raise UraniaError("The stock shader has no a_vertex input. This is not the expected X-Plane file.")
     return head.strip(), "\n".join(defines)
+
+
+def moon_enabled(settings=None):
+    return (settings or DEFAULT_SETTINGS)["MOON"].value >= 0.5
+
+
+def moon_airmass(elev_deg):
+    s = math.sin(math.radians(90.0 - elev_deg))
+    return 1.0 / math.sqrt(1.0 - 0.96 * s * s)
+
+
+def moon_ks_ref(settings=None):
+    """Krisciunas & Schaefer (1991) moon glow, in shader units, at the reference point."""
+    settings = settings or DEFAULT_SETTINGS
+    r = math.radians(MOON_REF_DEG)
+    k = settings["MOON_K_EXT"].value
+    f = 10 ** 5.36 * (1.06 + math.cos(r) ** 2) + 10 ** (6.15 - MOON_REF_DEG / 40.0)
+    x = moon_airmass(MOON_REF_DEG)
+    return f * 10 ** (-0.4 * k * x) * (1.0 - 10 ** (-0.4 * k * x))
+
+
+def moon_settings_block(settings=None):
+    """Return the GLSL text of the moon constants (computed from the MOON_* settings)."""
+    settings = settings or DEFAULT_SETTINGS
+    sky, light = settings["MOON_SKY"].value, settings["MOON_LIGHT"].value
+    if sky <= 0.0:
+        raise UraniaError("MOON_SKY must be more than 0. Turn the moonlit sky off instead (MOON=0).")
+    rgb = settings["MOON_RGB"].value
+    lum = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]
+    glow_k = MOON_REF_GAIN * MOON_NITS_SKY / MOON_NITS_DEFAULT * sky / moon_ks_ref(settings)
+    env = (MOON_NITS_LIGHT * light) / (MOON_NITS_SKY * sky)
+    sin_r = math.sin(math.radians(settings["MOON_DIAMETER"].value / 2.0))
+    return "\n".join([
+        "// --- Moon settings (written by Urania) ---",
+        f"const float MOON_SIN_R = {sin_r!r};   // sin(moon radius)",
+        f"const float MOON_GLOW_K = {glow_k!r};   // glow gain (MOON_SKY = {sky!r})",
+        f"const float MOON_ENV = {env!r};   // extra glow in the scene light pass (MOON_LIGHT = {light!r})",
+        f"const float MOON_K_EXT = {float(settings['MOON_K_EXT'].value)!r};   // extinction, mag per airmass",
+        f"const float MOON_DITHER = {float(settings['MOON_DITHER'].value)!r};   // glow noise strength",
+        f"const float MOON_LS = {float(settings['MOON_LS'].value)!r};   // 1 = Lommel-Seeliger disk light, 0 = stock Lambert",
+        "const vec3 MOON_RGB_N = vec3(" + ", ".join(repr(c / lum) for c in rgb) + ");   // glow color, luminance 1",
+    ])
+
+
+def block_instance(text, block):
+    m = re.search(r"uniform\s+" + block + r"\s*\{[^}]*\}\s*(\w+)\s*;", text)
+    if not m:
+        raise UraniaError(f"The stock moon stage has no uniform block {block}. This is not the expected X-Plane file.")
+    return m.group(1)
+
+
+def split_main(stock_glsl):
+    """Split decompiled GLSL into (declarations, main function)."""
+    i = stock_glsl.index("void main()")
+    return stock_glsl[:i], stock_glsl[i:]
+
+
+def assemble_moon_vertex(stock_glsl, point_size, settings=None):
+    """Stage 0 or 2: keep the stock declarations (same interface as stage 1), new main function."""
+    head, main = split_main(stock_glsl)
+    if ("gl_PointSize" in main) != point_size:
+        raise UraniaError("Unexpected stock moon vertex stage (gl_PointSize). This is not the expected X-Plane file.")
+    for name in ("a_vertex", "a_normal", "a_texcoord0", "v_dir_wrl", "v_normal_eye", "v_position_eye", "v_ratio",
+                 "v_eye"):
+        if not re.search(r"\b" + name + r"\b", head):
+            raise UraniaError(f"The stock moon vertex stage has no {name}. This is not the expected X-Plane file.")
+    if "GL_ARB_shader_viewport_layer_array" not in head:
+        head = head.replace("#version 460\n", "#version 460\n#extension GL_ARB_shader_viewport_layer_array : require\n", 1)
+    defines = [f"#define MXFORM {block_instance(head, 'u_transform_block_fat')}"]
+    ps = ""
+    if point_size:
+        defines.append(f"#define MIMM {block_instance(head, 'u_immediate_data')}")
+        ps = "gl_PointSize = MIMM.u_imm_a_point_size.x;"
+    body = _source("moon_vertex.glsl")
+    body = body.replace("// @SETTINGS@", moon_settings_block(settings)).replace("// @POINT_SIZE@", ps)
+    return (head.rstrip() + "\n\n// ---- End of the stock X-Plane declarations ----\n"
+            + "\n".join(defines) + "\n\n" + body)
+
+
+def assemble_moon_fragment(stock_glsl, settings=None):
+    """Stage 1: keep the stock declarations and the stock sky texture lookup, new main function."""
+    head, main = split_main(stock_glsl)
+    for name in ("u_tex0", "u_tex0_nrm", "v_texcoord0", "v_dir_wrl", "v_ratio", "v_position_eye", "v_normal_eye"):
+        if not re.search(r"\b" + name + r"\b", head):
+            raise UraniaError(f"The stock moon fragment stage has no {name}. This is not the expected X-Plane file.")
+    # The stock sky lookup starts with the view vector (from v_ratio) and ends with a do-while(false) block.
+    # (spirv-cross writes "while(false)" for the stock code, "while (false)" for a literal loop.)
+    m = re.search(r"(    vec3 (\w+) = normalize\(vec3\(\(v_ratio[^\n]*\n.*?\n    \} while ?\(false\);\n)", main, re.S)
+    if not m:
+        raise UraniaError("The stock sky lookup is not in stage 1. An X-Plane update changed the moon shader; "
+                          "build without the moonlit sky (MOON=0), and report it.")
+    view_var = m.group(2)
+    sky_block = re.sub(r"    vec3 " + view_var + r" = normalize\(vec3\(\(v_ratio[^\n]*\n",
+                       f"    vec3 {view_var} = dir;   // pixel direction in place of the stock view vector\n",
+                       m.group(1), count=1)
+    sky_var = re.search(r"vec4 (\w+);", sky_block)
+    if not sky_var:
+        raise UraniaError("The stock sky lookup in stage 1 has no sky color result.")
+    sky_block = ("// ---- Stock X-Plane sky lookup (read from your astronomical.xsa) ----\n" + sky_block
+                 + f"    vec4 stock_sky = {sky_var.group(1)};\n    // ---- End of the stock sky lookup ----")
+    defines = [f"#define MASTRO {block_instance(head, 'u_astronomical_data')}",
+               f"#define MDOME {block_instance(head, 'u_dome_data')}"]
+    body = _source("moon_fragment.glsl")
+    body = body.replace("// @SETTINGS@", moon_settings_block(settings)).replace("    // @STOCK_SKY@", sky_block)
+    return (head.rstrip() + "\n\n// ---- End of the stock X-Plane declarations ----\n"
+            + "\n".join(defines) + "\n\n" + body)
 
 
 def _source(name):
@@ -304,7 +428,7 @@ def open_stock(xsa_path):
     if sorted(stock) != list(range(STAGE_COUNT)):
         zin.close()
         raise UraniaError(f"{xsa_path}: expected astronomical_0.spv ... astronomical_8.spv, found {zin.namelist()}")
-    if spirv.PATCH_MARK in zin.read(stock[7]):
+    if spirv.PATCH_MARK in zin.read(stock[7]) or spirv.MOON_MARK in zin.read(stock[1]):
         zin.close()
         raise UraniaError(f"{xsa_path} is already patched. Use the ORIGINAL X-Plane file.")
     return zin, stock
@@ -349,8 +473,9 @@ def build_xsa(xsa_path, out_dir, settings=None, tools_dir=None, log=_quiet):
         glsl_dir = os.path.join(out_dir, "glsl")
         os.makedirs(glsl_dir, exist_ok=True)
 
+        moon = moon_enabled(settings)
         stock_glsl = {}
-        for i in (6, 8):
+        for i in ((0, 1, 2, 6, 8) if moon else (6, 8)):
             p = os.path.join(tmp, f"stock_{i}.spv")
             with open(p, "wb") as f:
                 f.write(zin.read(stock[i]))
@@ -358,8 +483,12 @@ def build_xsa(xsa_path, out_dir, settings=None, tools_dir=None, log=_quiet):
 
         sources = {6: assemble_vertex(stock_glsl[6], settings), 7: assemble_fragment(settings),
                    8: assemble_vertex(stock_glsl[8], settings)}
+        if moon:                                             # moonlit sky + moon phase (docs/MOONLIGHT.md)
+            sources[0] = assemble_moon_vertex(stock_glsl[0], point_size=False, settings=settings)
+            sources[1] = assemble_moon_fragment(stock_glsl[1], settings)
+            sources[2] = assemble_moon_vertex(stock_glsl[2], point_size=True, settings=settings)
         new_spv = {}
-        for i, text in sources.items():
+        for i, text in sorted(sources.items()):
             ext = MOD_STAGES[i]
             src = os.path.join(glsl_dir, f"astronomical_{i}.{ext}")
             spv = os.path.join(tmp, f"astronomical_{i}.spv")

@@ -20,6 +20,7 @@ struct InstallInfo {
     std::string version;            // Urania version that made the zip
     long long xsa_size = -1;        // size of the installed astronomical.xsa
     long long dat_size = -1;        // size of the installed earth_astro.dat
+    int moon = -1;                  // 1 = moonlit sky mod in the shader, 0 = X-Plane moon, -1 = unknown (1.0.0 zip)
 };
 
 enum class SkyState {
@@ -31,6 +32,7 @@ enum class SkyState {
 struct SkyCheck {
     SkyState state = SkyState::kNoManifest;
     std::string detail;             // text for the log and the window
+    InstallInfo info;               // what install.txt says (valid unless kNoManifest)
 };
 
 // Paths of the sky files inside an X-Plane folder (root ends with a separator).

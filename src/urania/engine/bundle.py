@@ -58,9 +58,12 @@ README = """URANIA {version} - NIGHT SKY FOR X-PLANE 12
 Urania changes the X-Plane 12 night sky:
 - Stars have their real colors and sizes.
 - The Milky Way, nebulae and galaxies show as soft light.
+- Moonlit sky: the sky glows around the moon (brightest near the moon and the horizon), the glow
+  follows the moon phase and height, and the moon crescent stays bright up to its edge.
 - The Urania plugin (menu Plugins > Urania) sets the cloud moonlight and the sky darkness.
 
 This build:
+- Moonlit sky: {moon}
 - Screen height: {viewport_h} px
 - Star brightness (STAR_GAIN): {star_gain}
 - Milky Way brightness (MW_GAIN): {mw_gain}
@@ -179,11 +182,12 @@ def make_bundle(xsa, dat, original_xsa, original_dat, settings, out_zip, plugins
         raise UraniaError("The Urania plugin binaries are missing from this Urania installation. "
                           "Download Urania again.")
 
+    moon = spirv.has_moon(xsa)
     airglow = sum(1 for ln in night_sky.read_lines(dat) if ln.split()[3:4] == ["SKY"])
     sha_xsa, sha_dat = sha256_file(xsa), sha256_file(dat)
     sha_in_xsa, sha_in_dat = sha256_file(original_xsa), sha256_file(original_dat)
     text = README.format(
-        version=__version__,
+        version=__version__, moon="yes" if moon else "no (X-Plane moon)",
         viewport_h=_setting(settings, "VIEWPORT_H"), star_gain=_setting(settings, "STAR_GAIN"),
         mw_gain=_setting(settings, "MW_GAIN"), nebula_gain=_setting(settings, "NEBULA_GAIN"),
         galaxy_gain=_setting(settings, "GALAXY_GAIN"),
@@ -200,6 +204,7 @@ def make_bundle(xsa, dat, original_xsa, original_dat, settings, out_zip, plugins
         f"xsa_size {os.path.getsize(xsa)}",
         f"dat_sha256 {sha_dat}",
         f"dat_size {os.path.getsize(dat)}",
+        f"moon {1 if moon else 0}",
         f"original_xsa_sha256 {sha_in_xsa}",
         f"original_dat_sha256 {sha_in_dat}",
     ]) + "\n"

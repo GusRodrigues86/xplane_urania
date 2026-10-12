@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "urania"
-version = "1.0.0"
+version = "1.0.1"
 description = "Urania: build the night sky mod (shader, star data, plugin) for X-Plane 12.4.4 and newer."
 requires-python = ">=3.9,<3.15"
 license = { text = "MIT" }

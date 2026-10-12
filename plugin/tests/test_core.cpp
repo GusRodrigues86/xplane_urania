@@ -146,6 +146,12 @@ void test_install_info(const fs::path& tmp)
     write_all(tmp / "good.txt", "urania 1.0.0\nxsa_size 60966\ndat_size 1615523\n");
     CHECK(read_install_info((tmp / "good.txt").string(), info, err));
     CHECK(info.version == "1.0.0" && info.xsa_size == 60966 && info.dat_size == 1615523);
+    CHECK(info.moon == -1);                                             // 1.0.0 zips have no moon line
+    write_all(tmp / "moon.txt", "urania 1.0.1\nxsa_size 1\ndat_size 2\nmoon 1\n");
+    CHECK(read_install_info((tmp / "moon.txt").string(), info, err));
+    CHECK(info.moon == 1);
+    write_all(tmp / "nomoon.txt", "urania 1.0.1\nxsa_size 1\ndat_size 2\nmoon 0\n");
+    CHECK(read_install_info((tmp / "nomoon.txt").string(), info, err) && info.moon == 0);
     write_all(tmp / "bad.txt", "hello world\n");
     CHECK(!read_install_info((tmp / "bad.txt").string(), info, err));
     CHECK(!read_install_info((tmp / "none.txt").string(), info, err));

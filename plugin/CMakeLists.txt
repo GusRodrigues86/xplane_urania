@@ -16,7 +16,7 @@
 # =====================================================================================
 cmake_minimum_required(VERSION 3.21)
 
-project(Urania VERSION 1.0.0 LANGUAGES CXX)
+project(Urania VERSION 1.0.1 LANGUAGES CXX)
 
 if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "build type" FORCE)
