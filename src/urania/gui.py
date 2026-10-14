@@ -9,6 +9,7 @@ Layout:
     left        the input cards: X-Plane folder, original shader, original star file, catalog, map
     right       system check, options (screen height, airglow, advanced gains), output zip, Build, log
 """
+import math
 import os
 import queue
 import sys
@@ -23,6 +24,15 @@ from urania.errors import UraniaError
 SLOT_KEYS = ("xplane", "xsa", "dat", "stars", "milkyway")
 GAIN_KEYS = ("STAR_GAIN", "MW_GAIN", "NEBULA_GAIN", "GALAXY_GAIN")
 GAIN_LABELS = {"STAR_GAIN": "Stars", "MW_GAIN": "Milky Way", "NEBULA_GAIN": "Nebulae", "GALAXY_GAIN": "Galaxies"}
+# What a higher value does (shown under each gain in the Advanced box).
+GAIN_HELP = {
+    "STAR_GAIN": "Higher: all stars are brighter, and more faint stars become visible.",
+    "MW_GAIN": "Higher: the Milky Way band (and the airglow, if on) is brighter. Too high hides the faint stars.",
+    "NEBULA_GAIN": "Higher: the nebulae are brighter (Orion, Carina, Lagoon, North America).",
+    "GALAXY_GAIN": "Higher: the galaxies and globular clusters are brighter (Andromeda, Omega Centauri).",
+}
+GAIN_INTRO = ("Multipliers over the physical brightness. 1 = the real sky (the catalog brightness), "
+              "2 = twice as bright, 0.5 = half as bright. Use a dot for decimals: 0.5.")
 
 
 # =====================================================================================
@@ -47,6 +57,7 @@ class GuiModel:
     airglow: bool = False
     moon: bool = True             # moonlit sky glow and moon phase (shader stages 0, 1, 2)
     gains: dict = field(default_factory=lambda: {k: shaders.DEFAULT_SETTINGS[k].value for k in GAIN_KEYS})
+    bad_gains: dict = field(default_factory=dict)  # {gain: message} for text that is not a valid multiplier
     out_zip: str = ""
     building: bool = False
 
@@ -114,6 +125,7 @@ class GuiModel:
             out.append("Output: the file name must end with .zip")
         if not 240 <= int(self.screen_height) <= 8640:
             out.append("Screen height: 240 to 8640 px")
+        out += [f"{GAIN_LABELS[k]}: {self.bad_gains[k]}" for k in GAIN_KEYS if k in self.bad_gains]
         return out
 
     def can_build(self):
@@ -129,8 +141,30 @@ class GuiModel:
             overrides=overrides, airglow=self.airglow,
             allow_any_version=s["xplane"].status == "warn")
 
+    def set_gain_text(self, key, text):
+        """Set a gain from the text of its field. Return the error message ("" = valid).
+
+        A comma is an error, not a decimal separator: '0,5' does not become 0.5.
+        """
+        text = text.strip()
+        if "," in text:
+            msg = "use a dot for decimals (0.5), not a comma"
+        else:
+            try:
+                value = float(text)
+            except ValueError:
+                value = math.nan
+            msg = "" if math.isfinite(value) and value > 0 else "enter a multiplier more than 0 (1 = physical)"
+        if msg:
+            self.bad_gains[key] = msg
+        else:
+            self.gains[key] = value
+            self.bad_gains.pop(key, None)
+        return msg
+
     def reset_gains(self):
         self.gains = {k: shaders.DEFAULT_SETTINGS[k].value for k in GAIN_KEYS}
+        self.bad_gains.clear()
 
 
 def guess_slot(path):
@@ -346,20 +380,28 @@ class UraniaApp:
                                                                                   sticky="w", pady=(2, 0))
 
         self.adv_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(parent, text="Advanced: brightness gains", variable=self.adv_var, style="Lav.TCheckbutton",
-                        command=self._toggle_adv).pack(anchor="w", pady=(6, 0))
+        ttk.Checkbutton(parent, text="Advanced: brightness multipliers", variable=self.adv_var,
+                        style="Lav.TCheckbutton", command=self._toggle_adv).pack(anchor="w", pady=(6, 0))
         self.adv = tk.Frame(parent, bg=T["surface"], padx=12, pady=8)
-        self.gain_vars = {}
+        self.adv.columnconfigure(3, weight=1)
+        ttk.Label(self.adv, text=GAIN_INTRO, style="Muted.TLabel", wraplength=420, justify="left").grid(
+            row=0, column=0, columnspan=4, sticky="w", pady=(0, 6))
+        self.gain_vars, self.gain_errors = {}, {}
         for i, key in enumerate(GAIN_KEYS):
-            ttk.Label(self.adv, text=GAIN_LABELS[key], style="Card.TLabel").grid(row=i, column=0, sticky="w")
+            row = 1 + 2 * i
+            ttk.Label(self.adv, text=GAIN_LABELS[key], style="Card.TLabel").grid(row=row, column=0, sticky="w")
             var = tk.StringVar(value=f"{self.model.gains[key]:g}")
             var.trace_add("write", lambda *a: self._sync_options())
-            ttk.Entry(self.adv, textvariable=var, width=8).grid(row=i, column=1, sticky="w", padx=8, pady=2)
-            ttk.Label(self.adv, text=shaders.DEFAULT_SETTINGS[key].comment, style="Muted.TLabel").grid(
-                row=i, column=2, sticky="w")
+            ttk.Entry(self.adv, textvariable=var, width=8).grid(row=row, column=1, sticky="w", padx=(8, 4), pady=2)
+            ttk.Label(self.adv, text=f"× physical   (default {shaders.DEFAULT_SETTINGS[key].value:g})",
+                      style="Card.TLabel").grid(row=row, column=2, sticky="w")
+            self.gain_errors[key] = ttk.Label(self.adv, text="", style="fail.Msg.TLabel")
+            self.gain_errors[key].grid(row=row, column=3, sticky="w", padx=(10, 0))
+            ttk.Label(self.adv, text=GAIN_HELP[key], style="Muted.TLabel", wraplength=420, justify="left").grid(
+                row=row + 1, column=0, columnspan=4, sticky="w", pady=(0, 4))
             self.gain_vars[key] = var
-        ttk.Button(self.adv, text="Tested values", style="Small.TButton", command=self._reset_gains).grid(
-            row=len(GAIN_KEYS), column=0, columnspan=2, sticky="w", pady=(6, 0))
+        ttk.Button(self.adv, text="Defaults", style="Small.TButton", command=self._reset_gains).grid(
+            row=1 + 2 * len(GAIN_KEYS), column=0, columnspan=2, sticky="w", pady=(6, 0))
         self.adv_anchor = ttk.Frame(parent)
         self.adv_anchor.pack(fill="x")
 
@@ -483,12 +525,7 @@ class UraniaApp:
         if hasattr(self, "moon_var"):
             self.model.moon = bool(self.moon_var.get())
         for k, var in getattr(self, "gain_vars", {}).items():
-            try:
-                v = float(var.get())
-                if v > 0:
-                    self.model.gains[k] = v
-            except ValueError:
-                pass
+            self.gain_errors[k].configure(text=self.model.set_gain_text(k, var.get()))
         if hasattr(self, "out_var"):
             self.model.out_zip = self.out_var.get().strip()
         self._refresh_build()

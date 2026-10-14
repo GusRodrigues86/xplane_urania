@@ -1,17 +1,17 @@
 make_night_sky.py report
 
 Inputs (SHA-256):
-  astro     348c03fe20973c68187b1e0f5c25b66af0f774255c884d5f9145b9cf4b10bc91  2ed0a93d-earth_astro.dat
+  astro     348c03fe20973c68187b1e0f5c25b66af0f774255c884d5f9145b9cf4b10bc91  earth_astro_original.dat
   stars     e3ec6cde89bae0dde064d91c1edb9ec53c3c40d5c12fdf5d30f9a4de5dbc2143  stars.8.json
   milkyway  2eb802d6e68d170b410f766c7fec07f7518619f6b6708fdc81e9302d93e74fdb  milkyway_2020_4k.exr
 
-Python 3.13.16, numpy 2.5.3
+Python 3.13.1, numpy 2.5.4
 
-stars=8347 matched=8317 fine=38632 coarse=11251 airglow=6600 deep-sky=63
+stars=8347 matched=8317 fine=38632 coarse=11251 airglow=6600 deep-sky=57
 
 Outputs (SHA-256):
-  b38e55b1f6c91081f5646d58ea0199ae7259dba848619c789a8e39d656177cd5  earth_astro.dat  (58293 rows)
-  91ae480738aa3e2f058f101d98dd9726a263023726c1ef835fdf2e15c32cfb17  earth_astro_airglow.dat  (64893 rows)
+  1ac9700d521ad28e263c0286752e7a978d8f6b41894f93cfd1c9301013e45f0d  earth_astro.dat  (58287 rows)
+  b748be365d38dc855a5b33c151f30f9200cbc3ef98b602ebdf03de910d8a4caf  earth_astro_airglow.dat  (64887 rows)
 
 Settings:
   AIRGLOW_S = 2.5
@@ -22,8 +22,6 @@ Settings:
   BV_MIN = -0.4
   COARSE_S = 1.4
   COARSE_SIZE = 18
-  CORE_DIAM = 0.4
-  CORE_FRAC = 0.25
   ELONG_DIAM = 1.4
   ELONG_SIG = 0.3
   ELONG_STEP = 0.35

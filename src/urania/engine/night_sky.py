@@ -111,13 +111,11 @@ DSO = [
 ELONG_DIAM = 1.4    # Blob diameter = 1.4 x minor axis.
 ELONG_STEP = 0.35   # Distance between blob centers <= 0.35 x blob diameter (the blobs overlap).
 ELONG_SIG = 0.3     # Flux along the major axis is a Gaussian with sigma = 0.3 x major axis.
-CORE_FRAC = 0.25    # A galaxy (class 3) puts 25 % of its flux in a bright core blob.
-CORE_DIAM = 0.4     # Core blob diameter = 0.4 x minor axis.
 
 # The settings that the report lists (all the values above).
 _REPORT_SETTINGS = (
     "AIRGLOW_S", "AIRGLOW_SB", "AIRGLOW_SIZE", "BLEND_SB", "BV_MAX", "BV_MIN", "COARSE_S", "COARSE_SIZE",
-    "CORE_DIAM", "CORE_FRAC", "ELONG_DIAM", "ELONG_SIG", "ELONG_STEP", "FADE_SB", "FINE_S", "FINE_SIZE",
+    "ELONG_DIAM", "ELONG_SIG", "ELONG_STEP", "FADE_SB", "FINE_S", "FINE_SIZE",
     "MAG_MAX", "MATCH_MAG_DIFF", "MATCH_RADIUS_DEG", "PRECESSION_T", "SB_ANCHOR", "SB_ANCHOR_MAP_VALUE",
     "STAR_K_MAX", "STAR_K_MIN", "ZP")
 
@@ -410,7 +408,6 @@ def dso_entries():
             continue
         # Elongated object: a chain of overlapping blobs along the major axis.
         flux = 10 ** (-0.4 * mag)
-        core = CORE_FRAC if color == 3 else 0.0
         diam = ELONG_DIAM * b / 60
         half = 0.5 * (a - 0.6 * b) / 60                 # Chain centers go from -half to +half (deg).
         n = min(15, max(2, int(math.ceil(2 * half / (ELONG_STEP * diam))) + 1))
@@ -419,10 +416,7 @@ def dso_entries():
         sw = sum(w)
         for j, (o, wj) in enumerate(zip(offs, w)):
             add_blob(name + chr(97 + j), ra_h, dec, o, pa,
-                     -2.5 * math.log10(flux * (1 - core) * wj / sw), color, diam)
-        if core:
-            add_blob(name + "core", ra_h, dec, 0.0, pa, -2.5 * math.log10(flux * core), color,
-                     CORE_DIAM * b / 60)
+                     -2.5 * math.log10(flux * wj / sw), color, diam)
     return entries
 
 

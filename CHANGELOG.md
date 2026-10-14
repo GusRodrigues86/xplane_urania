@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Brightness gains are multipliers over the physical brightness
+
+- Stars keep the total light of their magnitude: the shader divides the star brightness by the area of the star sprite,
+  as it already did for the haze blobs. All 4 gains now mean the same thing: 1 = physical (the catalog brightness),
+  2 = twice as bright.
+- `STAR_GAIN` default 0.35 -> 1.0 (physical, not tested yet in X-Plane). The old 0.35 is not comparable: with the old
+  rule, the light of a star also grew with its sprite area (x2.25 for faint stars, x28 for the brightest).
+- GUI, Advanced: "brightness multipliers". The box explains the values and what a higher value does. A comma in a value
+  is an error ("use a dot for decimals"); an invalid value blocks Build (before, the app used the last valid value).
+- Plugin (developer build): star slider range 0.05 to 20, button "App defaults".
+
+### Galaxies: no core blob
+
+- A galaxy is now only the elongated smudge. The 6 core blobs (M31, M33, NGC253, M81, M104, M110) are removed; the
+  chain blobs get their 25 % of the light. `earth_astro.dat` has 58 287 rows (was 58 293). New reference hashes in
+  `tests/fixtures/`.
+
 ## 1.0.1 (2026-10-11)
 
 ### Moonlit sky (new in Urania; from the NightSky v1 work)

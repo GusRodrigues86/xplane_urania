@@ -45,7 +45,7 @@ def test_ready_when_all_inputs_ok(model, tmp_path, fake_catalog, fake_exr):
     assert model.can_build()
     req = model.request()
     assert req.stars == fake_catalog and req.overrides["VIEWPORT_H"] == model.screen_height
-    assert req.overrides["STAR_GAIN"] == 0.35
+    assert req.overrides["STAR_GAIN"] == 1.0
 
 
 def test_originals_by_hand_without_xplane(model, tmp_path, fake_dat, fake_catalog, fake_exr):
@@ -106,8 +106,33 @@ def test_folder_dropped_on_file_slot(model, tmp_path):
 
 def test_reset_gains(model):
     model.gains["STAR_GAIN"] = 9.0
+    model.set_gain_text("MW_GAIN", "x")
     model.reset_gains()
-    assert model.gains["STAR_GAIN"] == 0.35
+    assert model.gains["STAR_GAIN"] == 1.0
+    assert model.bad_gains == {}
+
+
+@pytest.mark.parametrize("text,value", [("2", 2.0), (" 0.5 ", 0.5), ("1e1", 10.0)])
+def test_gain_text_valid(model, text, value):
+    assert model.set_gain_text("MW_GAIN", text) == ""
+    assert model.gains["MW_GAIN"] == value
+
+
+@pytest.mark.parametrize("text,msg", [
+    ("0,5", "not a comma"), ("1,000", "not a comma"),
+    ("", "more than 0"), ("abc", "more than 0"), ("0", "more than 0"), ("-1", "more than 0"),
+    ("inf", "more than 0"), ("nan", "more than 0"),
+])
+def test_gain_text_invalid_blocks_build(model, tmp_path, fake_catalog, fake_exr, text, msg):
+    model.set_path("xplane", make_root(tmp_path))
+    model.set_path("stars", fake_catalog)
+    model.set_path("milkyway", fake_exr)
+    assert msg in model.set_gain_text("NEBULA_GAIN", text)
+    assert model.gains["NEBULA_GAIN"] == 40.0                          # the last valid value stays
+    assert model.problems() == [f"Nebulae: {model.bad_gains['NEBULA_GAIN']}"]
+    assert not model.can_build()
+    model.set_gain_text("NEBULA_GAIN", "10")
+    assert model.can_build() and model.request().overrides["NEBULA_GAIN"] == 10.0
 
 
 def test_find_installs_picks_first(tmp_path, monkeypatch):

@@ -31,8 +31,9 @@ struct SkyGains {
 // tests/test_shaders.py checks this).
 const int kGainSpecId[kGainCount] = {200, 201, 202, 203};
 const int kHazeEmissiveSpecId = 204;
-// Defaults of the tested build (DEFAULT_SETTINGS in src/urania/engine/shaders.py).
-const float kGainDefault[kGainCount] = {0.35f, 3.0f, 40.0f, 40.0f};
+// Defaults of the app build (DEFAULT_SETTINGS in src/urania/engine/shaders.py). Each gain is a multiplier
+// over the physical brightness (1 = the light of the catalog magnitude).
+const float kGainDefault[kGainCount] = {1.0f, 3.0f, 40.0f, 40.0f};
 
 // Read the gains from the file. Return false and set error if the file is not a Urania build
 // with gains (example: an old build, or the X-Plane original).

@@ -1,5 +1,6 @@
 import math
 import os
+import re
 
 import numpy as np
 import pytest
@@ -95,9 +96,19 @@ def test_color_code_stars_matches_catalog(fake_dat, fake_catalog):
 
 def test_dso_entries_count_and_classes():
     entries = ns.dso_entries()
-    assert len(entries) == 63            # reference: deep-sky=63
+    assert len(entries) == 57            # 63 in v1, minus the 6 galaxy core blobs (removed 2026-10-13)
     classes = {ns.decode_like_shader(e[2])[3] for e in entries}
     assert classes == {1, 2, 3}
+
+
+def test_galaxy_is_only_the_elongated_chain():
+    entries = ns.dso_entries()
+    assert not [e for e in entries if e[3].endswith("core") and e[3] != "M42core"]
+    m31 = [e for e in entries if re.fullmatch(r"M31[a-o]", e[3])]
+    assert len(m31) >= 2
+    # The chain blobs keep the full light of the galaxy (mag 3.4; each blob magnitude has a 0.1 step).
+    total = sum(10 ** (-0.4 * ns.decode_like_shader(e[2])[1]) for e in m31)
+    assert -2.5 * math.log10(total) == pytest.approx(3.4, abs=0.1)
 
 
 def test_airglow_layer():

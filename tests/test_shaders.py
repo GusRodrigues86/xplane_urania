@@ -1,3 +1,4 @@
+import math
 import os
 import zipfile
 
@@ -40,7 +41,7 @@ void main()
 
 def test_settings_block_spec_constants():
     text = shaders.settings_block("v")
-    assert "layout(constant_id = 200) const float STAR_GAIN = 0.35;" in text
+    assert "layout(constant_id = 200) const float STAR_GAIN = 1.0;" in text
     assert "layout(constant_id = 201) const float MW_GAIN = 3.0;" in text
     assert "layout(constant_id = 202) const float NEBULA_GAIN = 40.0;" in text
     assert "layout(constant_id = 203) const float GALAXY_GAIN = 40.0;" in text
@@ -63,8 +64,8 @@ def test_spec_ids_agree_with_plugin_header():
     assert "kGainSpecId[kGainCount] = {200, 201, 202, 203}" in text
     assert "kHazeEmissiveSpecId = 204" in text
     defaults = [shaders.DEFAULT_SETTINGS[n].value for n in ("STAR_GAIN", "MW_GAIN", "NEBULA_GAIN", "GALAXY_GAIN")]
-    assert "kGainDefault[kGainCount] = {0.35f, 3.0f, 40.0f, 40.0f}" in text
-    assert defaults == [0.35, 3.0, 40.0, 40.0]
+    assert "kGainDefault[kGainCount] = {1.0f, 3.0f, 40.0f, 40.0f}" in text
+    assert defaults == [1.0, 3.0, 40.0, 40.0]
 
 
 def test_resolve_settings_overrides():
@@ -73,7 +74,7 @@ def test_resolve_settings_overrides():
     assert s["STAR_GAIN"].spec_id == 200
     assert s["HAZE_RGB_1"].value == (2.0, 0.6, 1.0)
     assert s["VIEWPORT_H"].value == 1440.0
-    assert shaders.DEFAULT_SETTINGS["STAR_GAIN"].value == 0.35       # defaults unchanged
+    assert shaders.DEFAULT_SETTINGS["STAR_GAIN"].value == 1.0        # defaults unchanged
 
 
 def test_resolve_settings_legacy_dso_gain():
@@ -126,6 +127,15 @@ def test_assemble_vertex_has_mod_code():
     assert text.startswith("#version 460\n")
     assert "// @SETTINGS@" not in text and "// @STAR_RGB@" not in text      # the markers are replaced
     assert "GALAXY_GAIN" in text and "NEBULA_GAIN" in text and "DSO_GAIN" not in text
+    assert "scale = STAR_GAIN / area;" in text       # stars keep the total light of their magnitude
+
+
+def test_star_profile_areas():
+    # The divisors in sky_vertex.glsl: the area (in units of S^2) of the profiles in sky_fragment.glsl.
+    star_glow = math.pi * (1 - math.exp(-4.0)) / 4.0 / 4.0      # exp(-4 r^2) inside the circle r <= 1
+    haze = math.pi * (1 - math.exp(-4.5)) / 4.5 / 4.0           # exp(-4.5 r^2) inside the circle r <= 1
+    assert star_glow == pytest.approx(0.192753, abs=1e-6)
+    assert haze == pytest.approx(0.1728, rel=2e-3)                  # the shader rounds it up by 0.12 % (0.001 mag)
 
 
 def test_open_stock_rejects_bad_files(tmp_path):
@@ -146,7 +156,7 @@ def test_open_stock_rejects_bad_files(tmp_path):
 def test_build_xsa(tmp_path, fake_xsa):
     r = shaders.build_xsa(fake_xsa, str(tmp_path / "out"),
                           shaders.resolve_settings({"GALAXY_GAIN": 25, "VIEWPORT_H": 1440}))
-    assert r.gains == pytest.approx({"STAR_GAIN": 0.35, "MW_GAIN": 3.0, "NEBULA_GAIN": 40.0,
+    assert r.gains == pytest.approx({"STAR_GAIN": 1.0, "MW_GAIN": 3.0, "NEBULA_GAIN": 40.0,
                                      "GALAXY_GAIN": 25.0, "HAZE_EMISSIVE": 0.0})
     with zipfile.ZipFile(fake_xsa) as zin, zipfile.ZipFile(r.xsa) as zout:
         assert zout.namelist() == zin.namelist()

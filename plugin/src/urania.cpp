@@ -565,8 +565,8 @@ void ui_gains()
         return;
     }
     static const char* const labels[kGainCount] = {"Stars", "Milky Way", "Nebulae", "Galaxies"};
-    static const float lo[kGainCount] = {0.02f, 0.1f, 0.5f, 0.5f};
-    static const float hi[kGainCount] = {3.0f, 30.0f, 400.0f, 400.0f};
+    static const float lo[kGainCount] = {0.05f, 0.1f, 0.5f, 0.5f};
+    static const float hi[kGainCount] = {20.0f, 30.0f, 400.0f, 400.0f};
     for (int g = 0; g < kGainCount; ++g) {
         ImGui::PushID(g);
         ImGui::SetNextItemWidth(-140.0f);
@@ -600,11 +600,12 @@ void ui_gains()
         g_edit_gains = g_file_gains;
     ImGui::EndDisabled();
     ImGui::SameLine();
-    if (ImGui::Button("Tested values"))
+    if (ImGui::Button("App defaults"))
         for (int g = 0; g < kGainCount; ++g)
             g_edit_gains.value[g] = kGainDefault[g];
-    help("Gains inside astronomical.xsa. X-Plane reads the shader file when it starts.\n"
-         "Write the values, then restart X-Plane. Tested: stars 0.35, Milky Way 3, nebulae 40, galaxies 40.\n"
+    help("Gains inside astronomical.xsa: multipliers over the physical brightness (1 = the light of the catalog\n"
+         "magnitude, 2 = twice as bright). X-Plane reads the shader file when it starts.\n"
+         "Write the values, then restart X-Plane. App defaults: stars 1, Milky Way 3, nebulae 40, galaxies 40.\n"
          "Before the first change, the plugin keeps a copy: astronomical.xsa.before_urania.");
     if (g_gains_written)
         ImGui::TextColored(ImVec4(0.5f, 1, 0.5f, 1), "Written. Restart X-Plane to see the change.");

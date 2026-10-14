@@ -117,7 +117,11 @@ void main()
         v_kind = 0;
         v_col = max(mix(vec3(1.0), STAR_RGB[k], SAT), vec3(0.0));
         v_size = clamp(SIZE_BASE - SIZE_PER_MAG * a_vertex.w, SIZE_MIN, SIZE_MAX);
-        scale = STAR_GAIN;
+        // The fragment stage draws a flat square (S^2 px) when small and a glow exp(-4 r^2) inside the circle
+        // (0.192753 S^2 px) when larger than 3.5 px (sky_fragment.glsl). Divide by the area of this profile:
+        // the star keeps the total light of its magnitude, as the haze blobs do. STAR_GAIN 1 = physical.
+        float area = v_size * v_size * mix(1.0, 0.192753, smoothstep(1.5, 3.5, v_size));
+        scale = STAR_GAIN / area;
     }
     gl_PointSize = v_size;
 

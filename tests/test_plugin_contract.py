@@ -57,7 +57,7 @@ def test_cpp_reads_python_fixture(cpp):
 def test_cpp_reads_and_writes_built_xsa(cpp, tmp_path, fake_xsa):
     r = shaders.build_xsa(fake_xsa, str(tmp_path / "out"),
                           shaders.resolve_settings({"NEBULA_GAIN": 12.5, "HAZE_EMISSIVE": 7}))
-    assert cpp_read(cpp, r.xsa) == pytest.approx({200: 0.35, 201: 3.0, 202: 12.5, 203: 40.0, 204: 7.0})
+    assert cpp_read(cpp, r.xsa) == pytest.approx({200: 1.0, 201: 3.0, 202: 12.5, 203: 40.0, 204: 7.0})
 
     # The plugin writes new gains in place: Python must read them back, and the ZIP CRCs must be right.
     xsa = str(tmp_path / "astronomical.xsa")

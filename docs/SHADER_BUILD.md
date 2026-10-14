@@ -160,18 +160,19 @@ The zip file contains X-Plane code (section 12). Share it privately only.
 
 ## 5. Settings
 
-The defaults are the tested version "stars35" (2026-10-10).
+The 4 gains are multipliers over the physical brightness: with gain 1, the pixels of a star or a haze blob add up to the light of its magnitude. `MW_GAIN`, `NEBULA_GAIN` and `GALAXY_GAIN` are the tested version "stars35" (2026-10-10). `STAR_GAIN` = 1 is physical and not tested yet (since 2026-10-13 the stars keep their total light; the old 0.35 is not comparable).
 
 | Setting | Default | Stage | Function |
 |---|---|---|---|
-| `STAR_GAIN` | 0.35 | vertex | Star brightness. 1.0 = physical. |
+| `STAR_GAIN` | 1.0 | vertex | Star brightness. 1.0 = physical (the shader divides by the star sprite area). |
 | `SAT` | 1.3 | vertex | Star color strength. 1.0 = physical. 0 = grey. |
 | `SIZE_BASE` | 7.0 | vertex | Star sprite size in pixels at magnitude 0. |
 | `SIZE_PER_MAG` | 1.2 | vertex | Pixels less for each magnitude. |
 | `SIZE_MIN` | 1.5 | vertex | Smallest star sprite in pixels. |
 | `SIZE_MAX` | 12.0 | vertex | Largest star sprite in pixels. |
-| `MW_GAIN` | 3.0 | vertex | Milky Way and airglow brightness (color class 0). |
-| `DSO_GAIN` | 40.0 | vertex | Nebula, galaxy and cluster brightness (color classes 1 to 3). |
+| `MW_GAIN` | 3.0 | vertex | Milky Way and airglow brightness (color class 0). 1.0 = physical. |
+| `NEBULA_GAIN` | 40.0 | vertex | Nebula brightness (color classes 1 and 2). 1.0 = physical. |
+| `GALAXY_GAIN` | 40.0 | vertex | Galaxy and globular cluster brightness (color class 3). 1.0 = physical. |
 | `HAZE_SAT` | 1.2 | vertex | Haze color strength. 1.0 = table colors. |
 | `HAZE_RGB_0` | 1.1039, 0.9856, 0.8378 | vertex | Class 0 color: Milky Way, warm white. |
 | `HAZE_RGB_1` | 2.3758, 0.5940, 0.9719 | vertex | Class 1 color: H-alpha emission, red-pink. |
@@ -347,9 +348,9 @@ Reference build (`reference_build_report.txt`):
 
 | Item | Value |
 |---|---|
-| Input `astronomical.xsa` (stock, Gus X-Plane 12 copy) | `246e6ab98b562cefc52659ccf192079e6ca1dd30b539f14e6610f6a785025ec0` |
-| glslangValidator | 15.1.0 |
-| spirv-val | SPIRV-Tools v2025.1 |
+| Input `astronomical.xsa` (`inputs/astronomical_original.xsa`) | `fb856aad8b60f4d388e224db1942c1374c65fbd5e713cfba07e508609d79a62f` |
+| glslangValidator | 16.6.0 |
+| spirv-val | SPIRV-Tools v2026.4 |
 | Settings | Defaults (section 5) |
 
 ---

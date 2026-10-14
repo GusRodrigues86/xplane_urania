@@ -133,13 +133,13 @@ size     = round( ln(diameter / 0.1°) / ln 1.25 )
 
 Each size class is 25 % larger than the one before. A 25 % step is small enough for a smooth look.
 
-Example, the Andromeda core blob:
+Example, a galaxy blob of magnitude 4.9 and diameter 24′:
 
 | Value | Number |
 |---|---|
 | Magnitude | 4.9 |
 | Color class | 3 (galaxy) |
-| Diameter | 0.4 × 60′ = 24′ = 0.40° → size = round(6.21) = 6 |
+| Diameter | 24′ = 0.40° → size = round(6.21) = 6 |
 | code | 3 × 25 + 6 = 81 → kk = 98, c = 1 |
 | Field in file | 4.9 + 0.01 + 0.0098 = **4.9198** |
 
@@ -298,12 +298,11 @@ The step between blob centers is at most `0.35 d`. This is less than 1 FWHM, so 
 The total flux `F = 10^(−0.4 m)` goes to the blobs:
 
 ```
-galaxy (class 3):  core blob, diameter 0.4 b:   mag = −2.5 log10(0.25 F)
-                   chain blob j:                mag = −2.5 log10(0.75 F × w_j / Σw)
-other classes:     chain blob j:                mag = −2.5 log10(F × w_j / Σw)
+chain blob j:   mag = −2.5 log10(F × w_j / Σw)
 ```
 
-The core blob copies the bright nucleus of a real galaxy.
+All classes use the same rule. Until 2026-10-13, a galaxy (class 3) also had a small core blob with 25 % of the flux
+(diameter 0.4 b). Urania removed it: a galaxy is now only the elongated smudge.
 
 Each blob moves along the position angle:
 
@@ -321,7 +320,7 @@ This section explains the shader side. The shader settings are in `astronomical.
 
 1. X-Plane computes a brightness from the field w: `L = 2.128e−6 × 10^(−0.4 w) × emissive × exposure`.
 2. The shader removes the effect of the code digits: `L × 10^(−0.4 (m − w))`. Now L uses the true magnitude m.
-3. The shader multiplies L by the gain: `MW_GAIN` (class 0) or `DSO_GAIN` (classes 1 to 3).
+3. The shader multiplies L by the gain: `MW_GAIN` (class 0), `NEBULA_GAIN` (classes 1 and 2) or `GALAXY_GAIN` (class 3).
 4. The shader computes the sprite size S in pixels: `S = diameter (radians) × 0.5 × H × P[1][1]`. H is the screen height in pixels. P is the projection matrix. `0.5 × H × P[1][1]` is the number of pixels per radian at the screen center.
 5. The fragment stage draws the profile `exp(−4.5 r²)`, with r = 0 at the center and r = 1 at the sprite edge.
 6. The shader divides L by the area of the profile: `∫ exp(−4.5 r²) dA = 0.1728 × S²`.
@@ -331,7 +330,9 @@ Thus, a blob with the same magnitude gives the same total light at all zoom leve
 
 At wide field of view, the screen edges stretch the sky by `1 + tan²` of the view angle. The shader makes the sprite larger by the same factor. The shader keeps the brightness of the unstretched sprite (S0), so the SB stays the same at the edges.
 
-Current shader settings (version "stars35"): `STAR_GAIN = 0.35`, `MW_GAIN = 3`, `DSO_GAIN = 40`, star size 7 px at magnitude 0, minus 1.2 px for each magnitude, 1.5 px minimum, 12 px maximum.
+Stars use the same rule since 2026-10-13: the shader divides L by the area of the star profile (a flat square of S² px when small, `exp(−4 r²)` with area `0.192753 × S²` when larger than 3.5 px). Thus, each gain is a multiplier over the physical brightness: with gain 1, the pixels of a star or a blob add up to the light of its magnitude.
+
+Current shader settings: `STAR_GAIN = 1` (physical, not tested yet), `MW_GAIN = 3`, `NEBULA_GAIN = 40`, `GALAXY_GAIN = 40`, star size 7 px at magnitude 0, minus 1.2 px for each magnitude, 1.5 px minimum, 12 px maximum.
 The shader does not multiply stars or haze by the X-Plane sky texture transparency, because that texture has a dark band at the screen center.
 
 ## 9. Precession
@@ -357,7 +358,7 @@ C = sin θ cos δ cos(α + ζ) + cos θ sin δ
 The script keeps the header of the X-Plane file, then writes all rows, then an empty line, then the end marker `99`.
 
 New rows have this format: `RA(7.4f) Dec(8.3f) field(.4f) name`.
-The names are `MW` (Milky Way), `SKY` (airglow), or the object name with a letter for each chain blob (for example `M31a`, `M31core`).
+The names are `MW` (Milky Way), `SKY` (airglow), or the object name with a letter for each chain blob (for example `M31a`, `M31b`).
 
 The script sorts all rows by the field value, bright first. The stock X-Plane file has the same order.
 The sort is stable: rows with the same value keep their input order. Thus, the output is the same on each run.
@@ -368,17 +369,17 @@ The file without airglow is the same as the file with airglow, minus the `SKY` r
 
 The script uses no random numbers. The same input files and the same settings give the same output files.
 
-Reference run (2026-10-10, Python 3.13.16, numpy 2.5.3):
+Reference run (2026-10-13, Python 3.13.1, numpy 2.5.4):
 
 | File | SHA-256 |
 |---|---|
 | Input `earth_astro.dat` (X-Plane 12 stock, 8347 stars) | `348c03fe20973c68187b1e0f5c25b66af0f774255c884d5f9145b9cf4b10bc91` |
 | Input `stars.8.json` | `e3ec6cde89bae0dde064d91c1edb9ec53c3c40d5c12fdf5d30f9a4de5dbc2143` |
 | Input `milkyway_2020_4k.exr` | `2eb802d6e68d170b410f766c7fec07f7518619f6b6708fdc81e9302d93e74fdb` |
-| Output `earth_astro.dat` (58 293 rows) | `b38e55b1f6c91081f5646d58ea0199ae7259dba848619c789a8e39d656177cd5` |
-| Output `earth_astro_airglow.dat` (64 893 rows) | `91ae480738aa3e2f058f101d98dd9726a263023726c1ef835fdf2e15c32cfb17` |
+| Output `earth_astro.dat` (58 287 rows) | `1ac9700d521ad28e263c0286752e7a978d8f6b41894f93cfd1c9301013e45f0d` |
+| Output `earth_astro_airglow.dat` (64 887 rows) | `b748be365d38dc855a5b33c151f30f9200cbc3ef98b602ebdf03de910d8a4caf` |
 
-These outputs are byte-identical to the test files of version v7.4.
+Before 2026-10-13 (with the 6 galaxy core blobs), the outputs were byte-identical to the test files of version v7.4 (`earth_astro.dat` 58 293 rows, `b38e55b1…`).
 
 If your input hash is different, your result is different. A different X-Plane version can have a different star file.
 If only the numpy version is different, a few Milky Way rows can change by 0.1 magnitude. The cause is a different order of floating-point sums near a rounding limit.
@@ -396,6 +397,6 @@ All settings are at the top of `make_night_sky.py`, in section 1. The report fil
 | `MAG_MAX` | Removes faint blobs. A larger value gives more rows. |
 | `AIRGLOW_SB` | Airglow brightness. A smaller value gives a brighter sky. |
 | `DSO` | The deep-sky object list. Add a row to add an object. |
-| `ELONG_*`, `CORE_*` | Shape of elongated objects |
+| `ELONG_*` | Shape of elongated objects |
 
 To make a change in brightness only, change the gain in the shader. To make a change in shape, position or object list, change this script.

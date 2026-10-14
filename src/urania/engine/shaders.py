@@ -47,7 +47,10 @@ from urania.errors import UraniaError
 # 1. SETTINGS
 #    name: Setting(value, stage, comment, spec_id). stage "v" = vertex stages 6 and 8,
 #    "f" = fragment stage 7. spec_id = SPIR-V specialization constant ID (None = plain constant).
-#    The defaults are the tested version "stars35" (2026-10-10).
+#    The 4 gains are multipliers over the physical brightness: with gain 1, the pixels of a star or a haze
+#    blob add up to the light of its magnitude. MW_GAIN, NEBULA_GAIN and GALAXY_GAIN are the tested version
+#    "stars35" (2026-10-10). STAR_GAIN 1.0 is physical and not tested yet (the stars keep their total light
+#    since 2026-10-13; the old 0.35 is no longer comparable).
 # =====================================================================================
 
 @dataclass(frozen=True)
@@ -60,7 +63,7 @@ class Setting:
 
 DEFAULT_SETTINGS = {
     # --- Stars ---
-    "STAR_GAIN":    Setting(0.35,   "v", "star brightness (1.0 = physical)", spirv.GAIN_SPEC_IDS["STAR_GAIN"]),
+    "STAR_GAIN":    Setting(1.0,    "v", "star brightness (1.0 = physical)", spirv.GAIN_SPEC_IDS["STAR_GAIN"]),
     "SAT":          Setting(1.3,    "v", "star color strength (1.0 = physical, 0 = grey)"),
     "SIZE_BASE":    Setting(7.0,    "v", "star sprite size in px at magnitude 0"),
     "SIZE_PER_MAG": Setting(1.2,    "v", "px less for each magnitude"),
